@@ -116,3 +116,74 @@ export class AuthService {
 }
 ````
 
+**NOTA**
+
+> Estamos utilizando la propiedad `href` del objeto `window.location` de javascript para poder cambiar la URL de la página web actual en la que se encuentra el navegador web. En nuestro caso, estaremos cambiando a la dirección del servidor de autorización para iniciar el proceso de autenticación.
+>
+> No podemos utilizar `HttpClient`, ya que `HttpClient` se utiliza para realizar solicitudes HTTP y obtener datos de una API externa, pero **no puede usarse para redirigir el navegador del usuario a una URL externa.**
+
+## Componentes
+
+Crearemos 3 componentes: **authorized, home y menu**.
+
+El componente `AuthorizedComponent` recibirá el `Authorization Code` devuelto por el servidor de autorización como parte del **primer paso del flujo de autenticación**, así que nos toca recibir dicho código mediante un **query param**:
+
+```typescript
+@Component({
+  selector: 'app-authorized',
+  standalone: true,
+  templateUrl: './authorized.component.html',
+  styleUrls: ['./authorized.component.scss']
+})
+export class AuthorizedComponent implements OnInit {
+
+  public code?: string;
+  private _activatedRoute = inject(ActivatedRoute);
+
+  ngOnInit(): void {
+    this._activatedRoute.queryParams
+      .subscribe(({ code }) => this.code = code);
+  }
+
+}
+```
+
+Para ver el código que nos retorna el servidor imprimimos la variable `code` en la plantilla html:
+
+```html
+<h3>Authorization Code</h3>
+<pre>
+  <code>{{ code }}</code>
+</pre>
+```
+
+El otro componente importante es el `MenuComponent`, aquí creamos el método `onLogin()` desde donde llamamos al servicio `AuthService` e iniciamos el flujo de autenticación de OAuth 2:
+
+```typescript
+@Component({
+  selector: 'app-menu',
+  standalone: true,
+  imports: [RouterLink],
+  templateUrl: './menu.component.html',
+  styleUrls: ['./menu.component.scss']
+})
+export class MenuComponent {
+
+  private _authService = inject(AuthService);
+
+  onLogin(): void {
+    this._authService.startFlowOAuth2AuthorizationCode();
+  }
+
+}
+```
+
+A continuación se muestra solo la parte del html donde se inicia el flujo:
+
+```html
+<form class="d-flex" role="search">
+  <button class="btn btn-outline-success" (click)="onLogin()" type="button">Login</button>
+  <button class="btn btn-outline-danger" type="button">Logout</button>
+</form>
+```
+
