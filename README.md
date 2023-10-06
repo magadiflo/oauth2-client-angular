@@ -199,5 +199,30 @@ export const APP_ROUTES: Routes = [
 ];
 ```
 
+
 Esta ruta `path: 'authorized'` es muy importante, pues **es la que definimos en los environments** como `redirect_uri`. Es a donde precisamente el servidor de autorización reenviará el `Código de Autorización` como parte de la finalización del **PRIMER PASO** del tipo de concesión de código de autorización.
 
+## AppComponent
+
+En el `AppComponent` importamos los componentes necesarios que usaremos en su html:
+
+```typescript
+@Component({
+  selector: 'app-root',
+  standalone: true,
+  imports: [RouterOutlet, MenuComponent],
+  templateUrl: './app.component.html',
+  styleUrls: ['./app.component.scss']
+})
+export class AppComponent {
+}
+```
+
+El html quedaría de esta manera:
+
+```html
+<app-menu />
+<main class="container">
+  <router-outlet />
+</main>
+```
