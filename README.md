@@ -226,3 +226,18 @@ El html quedaría de esta manera:
   <router-outlet />
 </main>
 ```
+
+## Ejecutando aplicación: 1° Paso - Recibir Código de Autorización
+
+Antes de todo, debemos tener levantado el `Autorization Server`, luego proceder a dar el `Login`:
+
+![2.start-flow-oauth2](./src/assets/2.start-flow-oauth2.png)
+
+Como mencionamos en un apartado anterior al utilizar el `window.location.href` somos redireccionamos a la página del servidor de autorización. Podemos iniciar sesión con nuestra cuenta de `Google` o con algún usuario que tengamos registrado en el servidor de autorización. Para esta ocasión usaremos el usuario `user` registrado en el servidor de autorización:
+
+![3-login-con-user](./src/assets/3-login-con-user.png)
+
+Como finalización del **PRIMER PASO** del flujo de tipo de concesión de **Código de Autorización**, luego de iniciar sesión exitosamente en el servidor de autorización, éste nos redirecciona al `redirect_uri` que le definimos en la llamada inicial, en este caso a nuestra aplicación cliente de angular enviándonos el código de autorización que en términos de OAuth 2 este código es la prueba de que el usuario ha interactuado directamente con el `Authorization Server` acreditando su autorización:
+
+![4.authorization-code](./src/assets/4.authorization-code.png)
+
