@@ -72,3 +72,47 @@ Si observamos la imagen inferior veremos que las variables son las mismas que us
 
 En resumen, las variables que estamos definiendo en el `environment` corresponden a las variables que formarán el enlace para poder iniciar el flujo de autenticación con OAuth 2 con el tipo de concesión `Authorization Code`.
 
+## Servicio
+
+Crearemos la clase de servicio donde armaremos el enlace para iniciar el flujo de autenticación en OAuth 2 con el tipo de concesión de `Código de Autorización`. 
+
+Primero crearemos un archivo que contendrá los siguientes detalles que se usarán en la consulta:
+
+````typescript
+export const enum AUTHORIZE_REQUEST {
+  CLIENT_ID = 'client_id',
+  REDIRECT_URI = 'redirect_uri',
+  SCOPE = 'scope',
+  RESPONSE_TYPE = 'response_type',
+  RESPONSE_MODE = 'response_mode',
+  CODE_CHALLENGE_METHOD = 'code_challenge_method',
+  CODE_CHALLENGE = 'code_challenge',
+}
+````
+
+Finalmente, creamos nuestra clase de servicio `AuthService` donde crearemos el enlace para iniciar el flujo de autenticacion con nuestro servidor de autorización similar al enlace que nos crea la página `oauthdebugger.com`:
+
+````typescript
+@Injectable({
+  providedIn: 'root'
+})
+export class AuthService {
+
+  private get _params(): HttpParams {
+    return new HttpParams()
+      .set(AUTHORIZE_REQUEST.CLIENT_ID, environment.CLIENT_ID)
+      .set(AUTHORIZE_REQUEST.REDIRECT_URI, environment.REDIRECT_URI)
+      .set(AUTHORIZE_REQUEST.SCOPE, environment.SCOPE)
+      .set(AUTHORIZE_REQUEST.RESPONSE_TYPE, environment.RESPONSE_TYPE)
+      .set(AUTHORIZE_REQUEST.RESPONSE_MODE, environment.RESPONSE_MODE)
+      .set(AUTHORIZE_REQUEST.CODE_CHALLENGE_METHOD, environment.CODE_CHALLENGE_METHOD)
+      .set(AUTHORIZE_REQUEST.CODE_CHALLENGE, environment.CODE_CHALLENGE);
+  }
+
+  startFlowOAuth2AuthorizationCode(): void {
+    window.location.href = `${environment.AUTHORIZE_URI}?${this._params.toString()}`;
+  }
+
+}
+````
+
