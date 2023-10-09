@@ -541,3 +541,30 @@ export const appConfig: ApplicationConfig = {
   ]
 };
 ````
+
+## ResourceService para consumir endpoint del Servidor de Recurso
+
+Creamos nuestro servicio que apuntará al los endpoints del servidor de recursos:
+
+````typescript
+interface ResponseResourceServer {
+  message: string;
+}
+
+@Injectable({
+  providedIn: 'root'
+})
+export class ResourceService {
+
+  private _http = inject(HttpClient);
+  private _resourceUrl = environment.RESOURCE_URL;
+
+  user(): Observable<ResponseResourceServer> {
+    return this._http.get<ResponseResourceServer>(`${this._resourceUrl}/user`)
+  }
+
+  admin(): Observable<ResponseResourceServer> {
+    return this._http.get<ResponseResourceServer>(`${this._resourceUrl}/admin`)
+  }
+}
+````
