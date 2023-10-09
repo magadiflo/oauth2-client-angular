@@ -568,3 +568,69 @@ export class ResourceService {
   }
 }
 ````
+## Componentes Visuales: Admin y User
+
+Creamos el componente user y de inmediato llamamos al resource server:
+
+````typescript
+@Component({
+  selector: 'app-user',
+  standalone: true,
+  imports: [CommonModule],
+  templateUrl: './user.component.html',
+  styleUrls: ['./user.component.scss']
+})
+export class UserComponent implements OnInit {
+
+  public message: string = '';
+  private _resourceService = inject(ResourceService);
+
+  ngOnInit(): void {
+    this._resourceService.user()
+      .subscribe({
+        next: response => this.message = response.message,
+        error: err => {
+          this.message = `status[${err.status}], message: ${err.message}`;
+          console.log(err);
+        }
+      });
+  }
+
+}
+````
+
+El html del componente UserComponent:
+
+````html
+<div class="alert alert-success mt-3">{{ message }}</div>
+````
+
+Al igual que el componente User, toca ahora crear el componente Admin:
+
+````typescript
+@Component({
+  selector: 'app-admin',
+  standalone: true,
+  imports: [CommonModule],
+  templateUrl: './admin.component.html',
+  styleUrls: ['./admin.component.scss']
+})
+export class AdminComponent {
+
+  public message: string = '';
+  private _resourceService = inject(ResourceService);
+
+  ngOnInit(): void {
+    this._resourceService.admin()
+      .subscribe({
+        next: response => this.message = response.message,
+        error: err => {
+          this.message = `status[${err.status}], message: ${err.message}`;
+          console.log(err);
+        }
+      });
+  }
+
+}
+````
+
