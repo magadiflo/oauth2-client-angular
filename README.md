@@ -408,3 +408,13 @@ export class AuthorizedComponent implements OnInit {
   }
 }
 ````
+
+## Ejecutando: Obteniendo un Access Token al hacer login
+
+Nos vamos a loguear con nuestra cuenta de google para poder obtener un `Access Token` y verificar de esa manera que todo lo realizdo en este capítulo está funcionando. 
+
+¡Ojo!, es necesario que el `Authorization Server` esté levantado:
+
+![obteniendo access token](./src/assets/5.access_token.png)
+
+Listo, como observamos, estamos obteniendo un `access token` o para ser precisos varios tokens como prueba de que el flujo del tipo de concesión de código de autorización se efectuó correctamente.
