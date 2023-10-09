@@ -10,4 +10,5 @@ export const environment = {
   CODE_VERIFIER: '',
   TOKEN_URL: '',
   GRANT_TYPE: '',
+  RESOURCE_URL: '',
 };

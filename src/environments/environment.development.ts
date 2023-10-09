@@ -10,4 +10,5 @@ export const environment = {
   CODE_VERIFIER: 'Q1YURYhqGHYUThV7auOYZijKzVhnIvEbTWJmWbeMAkn',
   TOKEN_URL: 'http://localhost:9000/oauth2/token',
   GRANT_TYPE: 'authorization_code',
+  RESOURCE_URL: 'http://localhost:8080/api/v1/resources',
 };

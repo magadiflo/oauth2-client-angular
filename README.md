@@ -478,3 +478,66 @@ export class AuthorizedComponent implements OnInit {
 
 }
 ````
+---
+# CAPÍTULO 10: Accediendo al Resource Server desde cliente Angular
+
+---
+
+En este capítulo consumiremos los recursos expuestos por el `Resource Server`, ya que hasta este punto disponemos del `Access Token` para realizar ese consumo. Primero debemos agregar la url del Servidor de Recurso en los environments:
+
+````typescript
+export const environment = {
+  /* other variables */
+  RESOURCE_URL: 'http://localhost:8080/api/v1/resources',
+};
+````
+
+En la clase de servicio `TokenService` agregamos métodos para recuperar el `access_token` y el `refresh_token`:
+
+````typescript
+@Injectable({
+  providedIn: 'root'
+})
+export class TokenService {
+
+  /* other method */
+
+  getAccessToken(): string | null {
+    return localStorage.getItem(ACCESS_TOKEN);
+  }
+
+  getRefreshToken(): string | null {
+    return localStorage.getItem(REFRESH_TOKEN);
+  }
+
+}
+````
+
+## Interceptor - Agregando JWT a los request
+
+Crearemos un interceptor funcional que nos permitirá agregar el `access_token` a todas las peticiones que se dirigan al endpoint del resource server. Para eso necesitamos clonar la request:
+
+````typescript
+export const resourceInterceptor: HttpInterceptorFn = (req, next) => {
+  const tokenService = inject(TokenService);
+  const token = tokenService.getAccessToken();
+  let modifiedReq = req;
+
+  if (token !== null && req.url.includes('resources')) {
+    modifiedReq = req.clone({
+      headers: req.headers.set(`Authorization`, `Bearer ${token}`),
+    });
+  }
+  return next(modifiedReq);
+};
+````
+Para que nuestro interceptor entre en funcionamiento es necesario configurarlo en el archivo `app.config.ts` agregándolo dentro de la función `withInterceptors([...])` y este a su vez dentro del `provideHttpClient(...)`:
+
+````typescript
+export const appConfig: ApplicationConfig = {
+  providers: [
+    provideRouter(APP_ROUTES),
+    provideHttpClient(withInterceptors([resourceInterceptor])),
+  ]
+};
+````
