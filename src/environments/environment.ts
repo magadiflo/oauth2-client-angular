@@ -8,4 +8,6 @@ export const environment = {
   CODE_CHALLENGE_METHOD: '',
   CODE_CHALLENGE: '',
   CODE_VERIFIER: '',
+  TOKEN_URL: '',
+  GRANT_TYPE: '',
 };

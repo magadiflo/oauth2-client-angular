@@ -241,3 +241,102 @@ Como finalización del **PRIMER PASO** del flujo de tipo de concesión de **Cód
 
 ![4.authorization-code](./src/assets/4.authorization-code.png)
 
+---
+
+# CAPÍTULO 8: Obteniendo Access Token en Cliente Angular
+
+---
+
+## EndPoint para obtener Token
+
+Si revisamos las uris que el `servidor de autorización` nos proporciona veremos lo siguiente:
+
+````json
+/* http://localhost:9000/.well-known/oauth-authorization-server*/
+{
+    "issuer": "http://localhost:9000",
+    "authorization_endpoint": "http://localhost:9000/oauth2/authorize",
+    "device_authorization_endpoint": "http://localhost:9000/oauth2/device_authorization",
+    "token_endpoint": "http://localhost:9000/oauth2/token",
+    "token_endpoint_auth_methods_supported": [
+        "client_secret_basic",
+        "client_secret_post",
+        "client_secret_jwt",
+        "private_key_jwt"
+    ],
+    "jwks_uri": "http://localhost:9000/oauth2/jwks",
+    "response_types_supported": [
+        "code"
+    ],
+    "grant_types_supported": [
+        "authorization_code",
+        "client_credentials",
+        "refresh_token",
+        "urn:ietf:params:oauth:grant-type:device_code"
+    ],
+    "revocation_endpoint": "http://localhost:9000/oauth2/revoke",
+    "revocation_endpoint_auth_methods_supported": [
+        "client_secret_basic",
+        "client_secret_post",
+        "client_secret_jwt",
+        "private_key_jwt"
+    ],
+    "introspection_endpoint": "http://localhost:9000/oauth2/introspect",
+    "introspection_endpoint_auth_methods_supported": [
+        "client_secret_basic",
+        "client_secret_post",
+        "client_secret_jwt",
+        "private_key_jwt"
+    ],
+    "code_challenge_methods_supported": [
+        "S256"
+    ]
+}
+````
+
+De todas estas uris, el que ahora mismo nos interesa es el que nos proporciona el `Access Token`. Este endpoint es el `/oauth2/token` y lo colocaremos en el `environment` de desarrollo, mientras que en el de producción solo definiremos la variable `TOKEN_URL` con una cadena vacía '' como valor. Así mismo,
+debemos agregar la variable `GRANT_TYPE` correspondiente al tipo de concesión de código de autorización:
+
+````typescript
+export const environment = {
+  /* other properties */
+  TOKEN_URL: 'http://localhost:9000/oauth2/token',
+  GRANT_TYPE: 'authorization_code',
+};
+````
+
+Ahora, en nuestra clase de servicio `AuthService` necesitamos usar el `HttpClient` para realizar las peticiones a los endpoints del backend. Para que Angular nos permita usar el `HttpClient` necesitamos agregar la función `provideHttpClient()` en el archivo `app.config.ts`:
+
+````typescript
+export const appConfig: ApplicationConfig = {
+  providers: [
+    provideRouter(APP_ROUTES),
+    provideHttpClient(), //<--- Nos permitirá trabajar con el HttpClient
+  ]
+};
+````
+
+## Nuevos enum e interfaces
+
+Tenemos que definir nuevas variables de enumeración que serán usadas en la solicitud para la obtención del token:
+
+```typescript
+export const enum AUTHORIZE_REQUEST {
+  /* other enums */
+  GRANT_TYPE = 'grant_type',
+  CODE_VERIFIER = 'code_verifier',
+  CODE = 'code',
+}
+```
+También definimos la interfaz `Token` que representa el objeto que nos retornará el backend:
+
+````typescript
+export interface Token {
+  access_token:  string;
+  refresh_token: string;
+  scope:         string;
+  id_token:      string;
+  token_type:    string;
+  expires_in:    number;
+}
+````

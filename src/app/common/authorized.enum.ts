@@ -6,4 +6,7 @@ export const enum AUTHORIZE_REQUEST {
   RESPONSE_MODE = 'response_mode',
   CODE_CHALLENGE_METHOD = 'code_challenge_method',
   CODE_CHALLENGE = 'code_challenge',
+  GRANT_TYPE = 'grant_type',
+  CODE_VERIFIER = 'code_verifier',
+  CODE = 'code',
 }
