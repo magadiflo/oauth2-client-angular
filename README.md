@@ -241,3 +241,180 @@ Como finalización del **PRIMER PASO** del flujo de tipo de concesión de **Cód
 
 ![4.authorization-code](./src/assets/4.authorization-code.png)
 
+---
+
+# CAPÍTULO 8: Obteniendo Access Token en Cliente Angular
+
+---
+
+## EndPoint para obtener Token
+
+Si revisamos las uris que el `servidor de autorización` nos proporciona veremos lo siguiente:
+
+````json
+/* http://localhost:9000/.well-known/oauth-authorization-server*/
+{
+    "issuer": "http://localhost:9000",
+    "authorization_endpoint": "http://localhost:9000/oauth2/authorize",
+    "device_authorization_endpoint": "http://localhost:9000/oauth2/device_authorization",
+    "token_endpoint": "http://localhost:9000/oauth2/token",
+    "token_endpoint_auth_methods_supported": [
+        "client_secret_basic",
+        "client_secret_post",
+        "client_secret_jwt",
+        "private_key_jwt"
+    ],
+    "jwks_uri": "http://localhost:9000/oauth2/jwks",
+    "response_types_supported": [
+        "code"
+    ],
+    "grant_types_supported": [
+        "authorization_code",
+        "client_credentials",
+        "refresh_token",
+        "urn:ietf:params:oauth:grant-type:device_code"
+    ],
+    "revocation_endpoint": "http://localhost:9000/oauth2/revoke",
+    "revocation_endpoint_auth_methods_supported": [
+        "client_secret_basic",
+        "client_secret_post",
+        "client_secret_jwt",
+        "private_key_jwt"
+    ],
+    "introspection_endpoint": "http://localhost:9000/oauth2/introspect",
+    "introspection_endpoint_auth_methods_supported": [
+        "client_secret_basic",
+        "client_secret_post",
+        "client_secret_jwt",
+        "private_key_jwt"
+    ],
+    "code_challenge_methods_supported": [
+        "S256"
+    ]
+}
+````
+
+De todas estas uris, el que ahora mismo nos interesa es el que nos proporciona el `Access Token`. Este endpoint es el `/oauth2/token` y lo colocaremos en el `environment` de desarrollo, mientras que en el de producción solo definiremos la variable `TOKEN_URL` con una cadena vacía '' como valor. Así mismo,
+debemos agregar la variable `GRANT_TYPE` correspondiente al tipo de concesión de código de autorización:
+
+````typescript
+export const environment = {
+  /* other properties */
+  TOKEN_URL: 'http://localhost:9000/oauth2/token',
+  GRANT_TYPE: 'authorization_code',
+};
+````
+
+Ahora, en nuestra clase de servicio `AuthService` necesitamos usar el `HttpClient` para realizar las peticiones a los endpoints del backend. Para que Angular nos permita usar el `HttpClient` necesitamos agregar la función `provideHttpClient()` en el archivo `app.config.ts`:
+
+````typescript
+export const appConfig: ApplicationConfig = {
+  providers: [
+    provideRouter(APP_ROUTES),
+    provideHttpClient(), //<--- Nos permitirá trabajar con el HttpClient
+  ]
+};
+````
+
+## Nuevos enum e interfaces
+
+Tenemos que definir nuevas variables de enumeración que serán usadas en la solicitud para la obtención del token:
+
+```typescript
+export const enum AUTHORIZE_REQUEST {
+  /* other enums */
+  GRANT_TYPE = 'grant_type',
+  CODE_VERIFIER = 'code_verifier',
+  CODE = 'code',
+}
+```
+También definimos la interfaz `Token` que representa el objeto que nos retornará el backend:
+
+````typescript
+export interface Token {
+  access_token:  string;
+  refresh_token: string;
+  scope:         string;
+  id_token:      string;
+  token_type:    string;
+  expires_in:    number;
+}
+````
+
+## Método del servicio para solicitar token
+
+En nuestra clase de servicio creamos el método `getToken(code)` que a partir del código de autorización que le pasemos, deberá realizar una solicitud al backend para traer la información de los tokens:
+
+````typescript
+@Injectable({
+  providedIn: 'root'
+})
+export class AuthService {
+
+  private _http = inject(HttpClient);
+  private _token_url = environment.TOKEN_URL;
+
+  /* other code */
+
+  public getToken(code: string): Observable<Token> {
+    const clientCredentialsBase64 = btoa(`${environment.CLIENT_ID}:secret-key`);
+    const headers = this.getHeaders(clientCredentialsBase64);
+    const params = this.getParamsToken(code);
+    return this._http.post<Token>(this._token_url, params, { headers });
+  }
+
+  getParamsToken(code: string): HttpParams {
+    return new HttpParams()
+      .set(AUTHORIZE_REQUEST.GRANT_TYPE, environment.GRANT_TYPE)
+      .set(AUTHORIZE_REQUEST.CLIENT_ID, environment.CLIENT_ID)
+      .set(AUTHORIZE_REQUEST.REDIRECT_URI, environment.REDIRECT_URI)
+      .set(AUTHORIZE_REQUEST.CODE_VERIFIER, environment.CODE_VERIFIER)
+      .set(AUTHORIZE_REQUEST.CODE, code);
+  }
+
+  private getHeaders(credentialsEncodedBase64: string): HttpHeaders {
+    return new HttpHeaders({
+      'Content-Type': 'application/x-www-form-urlencoded',
+      'Authorization': `Basic ${credentialsEncodedBase64}`,
+    });
+  }
+
+}
+````
+## Inicia solicitud de Token
+
+Luego de obtener el `Authorization Code`, de inmediato solicitamos un `Access Token` con ese código:
+
+````typescript
+@Component({
+  selector: 'app-authorized',
+  standalone: true,
+  templateUrl: './authorized.component.html',
+  styleUrls: ['./authorized.component.scss']
+})
+export class AuthorizedComponent implements OnInit {
+
+  public code?: string;
+  private _activatedRoute = inject(ActivatedRoute);
+  private _authService = inject(AuthService);
+
+  ngOnInit(): void {
+    this._activatedRoute.queryParams
+      .pipe(
+        tap(({ code }) => this.code = code),
+        switchMap(({ code }) => this._authService.getToken(code))
+      )
+      .subscribe(token => console.log(token));
+  }
+}
+````
+
+## Ejecutando: Obteniendo un Access Token al hacer login
+
+Nos vamos a loguear con nuestra cuenta de google para poder obtener un `Access Token` y verificar de esa manera que todo lo realizdo en este capítulo está funcionando. 
+
+¡Ojo!, es necesario que el `Authorization Server` esté levantado:
+
+![obteniendo access token](./src/assets/5.access_token.png)
+
+Listo, como observamos, estamos obteniendo un `access token` o para ser precisos varios tokens como prueba de que el flujo del tipo de concesión de código de autorización se efectuó correctamente.
