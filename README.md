@@ -634,3 +634,27 @@ export class AdminComponent {
 }
 ````
 
+## Definiendo rutas para admin y user
+
+En el `app.routes.ts` definimos las rutas para nuestros nuevos componentes:
+
+````typescript
+export const APP_ROUTES: Routes = [
+  { path: '', component: HomeComponent, },
+  { path: 'authorized', component: AuthorizedComponent, }, 
+  { path: 'user', component: UserComponent, },
+  { path: 'admin', component: AdminComponent, },
+  { path: '**', redirectTo: '', pathMatch: 'full', },
+];
+````
+
+Finalmente, las definimos en el html: 
+
+````html
+<li class="nav-item">
+  <a class="nav-link" [routerLink]="['/user']">User</a>
+</li>
+<li class="nav-item">
+  <a class="nav-link" [routerLink]="['/admin']">Admin</a>
+</li>
+````
