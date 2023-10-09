@@ -418,3 +418,63 @@ Nos vamos a loguear con nuestra cuenta de google para poder obtener un `Access T
 ![obteniendo access token](./src/assets/5.access_token.png)
 
 Listo, como observamos, estamos obteniendo un `access token` o para ser precisos varios tokens como prueba de que el flujo del tipo de concesión de código de autorización se efectuó correctamente.
+
+---
+# CAPÍTULO 9: Almacenando tokens en localStorage
+
+---
+
+Definimos las constantes a usar para poder almacenar los tokens:
+
+````typescript
+/* interfaces.ts */
+export const ACCESS_TOKEN: string = 'access_token';
+export const REFRESH_TOKEN: string = 'refresh_token';
+````
+
+Creamos la clase de servicio `TokenService` done definiremos la lógica para almacenar los tokens:
+
+````typescript
+@Injectable({
+  providedIn: 'root'
+})
+export class TokenService {
+
+  setTokens(accessToken: string, refreshToken: string): void {
+    localStorage.setItem(ACCESS_TOKEN, accessToken);
+    localStorage.setItem(REFRESH_TOKEN, refreshToken);
+  }
+
+}
+````
+
+Finalmente, desde el componente `AuthorizedComponent` llamamos a nuestro servicio anterior para almacenar el token:
+
+````typescript
+@Component({
+  selector: 'app-authorized',
+  standalone: true,
+  templateUrl: './authorized.component.html',
+  styleUrls: ['./authorized.component.scss']
+})
+export class AuthorizedComponent implements OnInit {
+
+  public code?: string;
+  private _activatedRoute = inject(ActivatedRoute);
+  private _authService = inject(AuthService);
+  private _tokenService = inject(TokenService);
+
+  ngOnInit(): void {
+    this._activatedRoute.queryParams
+      .pipe(
+        tap(({ code }) => this.code = code),
+        switchMap(({ code }) => this._authService.getToken(code))
+      )
+      .subscribe(token => {
+        console.log(token);
+        this._tokenService.setTokens(token.access_token, token.refresh_token);
+      });
+  }
+
+}
+````
