@@ -340,3 +340,44 @@ export interface Token {
   expires_in:    number;
 }
 ````
+
+## Método del servicio para solicitar token
+
+En nuestra clase de servicio creamos el método `getToken(code)` que a partir del código de autorización que le pasemos, deberá realizar una solicitud al backend para traer la información de los tokens:
+
+````typescript
+@Injectable({
+  providedIn: 'root'
+})
+export class AuthService {
+
+  private _http = inject(HttpClient);
+  private _token_url = environment.TOKEN_URL;
+
+  /* other code */
+
+  public getToken(code: string): Observable<Token> {
+    const clientCredentialsBase64 = btoa(`${environment.CLIENT_ID}:secret-key`);
+    const headers = this.getHeaders(clientCredentialsBase64);
+    const params = this.getParamsToken(code);
+    return this._http.post<Token>(this._token_url, params, { headers });
+  }
+
+  getParamsToken(code: string): HttpParams {
+    return new HttpParams()
+      .set(AUTHORIZE_REQUEST.GRANT_TYPE, environment.GRANT_TYPE)
+      .set(AUTHORIZE_REQUEST.CLIENT_ID, environment.CLIENT_ID)
+      .set(AUTHORIZE_REQUEST.REDIRECT_URI, environment.REDIRECT_URI)
+      .set(AUTHORIZE_REQUEST.CODE_VERIFIER, environment.CODE_VERIFIER)
+      .set(AUTHORIZE_REQUEST.CODE, code);
+  }
+
+  private getHeaders(credentialsEncodedBase64: string): HttpHeaders {
+    return new HttpHeaders({
+      'Content-Type': 'application/x-www-form-urlencoded',
+      'Authorization': `Basic ${credentialsEncodedBase64}`,
+    });
+  }
+
+}
+````
