@@ -3,6 +3,7 @@ import { ActivatedRoute } from '@angular/router';
 import { switchMap, tap } from 'rxjs';
 
 import { AuthService } from '../../services/auth.service';
+import { TokenService } from '../../services/token.service';
 
 @Component({
   selector: 'app-authorized',
@@ -15,6 +16,7 @@ export class AuthorizedComponent implements OnInit {
   public code?: string;
   private _activatedRoute = inject(ActivatedRoute);
   private _authService = inject(AuthService);
+  private _tokenService = inject(TokenService);
 
   ngOnInit(): void {
     this._activatedRoute.queryParams
@@ -22,7 +24,10 @@ export class AuthorizedComponent implements OnInit {
         tap(({ code }) => this.code = code),
         switchMap(({ code }) => this._authService.getToken(code))
       )
-      .subscribe(token => console.log(token));
+      .subscribe(token => {
+        console.log(token);
+        this._tokenService.setTokens(token.access_token, token.refresh_token);
+      });
   }
 
 }
