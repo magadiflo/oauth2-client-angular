@@ -807,3 +807,41 @@ export class AuthorizedComponent implements OnInit {
 
 }
 ````
+---
+
+# CAPÍTULO 12: Definiendo menú según rol del usuario
+
+---
+
+## Métodos isLogged() e isAdmin()
+
+En nuestro servicio `TokenService` agregamos los dos métodos siguientes:
+
+````typescript
+
+@Injectable({
+  providedIn: 'root'
+})
+export class TokenService {
+
+  /* other code */
+
+  isLogged(): boolean {
+    return localStorage.getItem(ACCESS_TOKEN) !== null;
+  }
+
+  isAdmin(): boolean {
+    if (!this.isLogged()) return false;
+    const token = this.getAccessToken();
+    const payload = token!.split(".")[1];
+    const payloadDecoded = atob(payload);
+    const values = JSON.parse(payloadDecoded);
+    const roles = values.roles;
+    return !(roles.indexOf('ROLE_ADMIN') < 0);
+  }
+
+}
+````
+
+Nótese que a partir del jwt almacenado en el localStorage estamos obteniendo el rol del usuario actual.
+
