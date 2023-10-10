@@ -665,3 +665,271 @@ Primero debemos dar clic en el botón de `Login` para que podamos registrar el `
 
 ![6.angular-resource-server](./src/assets/6.angular-resource-server.png)
 
+---
+# CAPÍTULO 11: Implementación del Logout
+
+---
+
+## Definiendo endpoint del logout
+
+Definimos la variable que contendrá el endpoint en el servidor de autorización correspondiente al logout:
+
+````typescript
+export const environment = {
+  /* other variables */
+  LOGOUT_URL: 'http://localhost:9000/logout',
+};
+````
+
+Método en el `token.service.ts` para limpiar los tokens del localStorage:
+
+````typescript
+@Injectable({
+  providedIn: 'root'
+})
+export class TokenService {
+  /* other methods */
+  clear(): void {
+    localStorage.removeItem(ACCESS_TOKEN);
+    localStorage.removeItem(REFRESH_TOKEN);
+  }
+}
+````
+Método en el `auth.service.ts` para redireccionar al usuario al formulario de logout:
+
+````typescript
+
+@Injectable({
+  providedIn: 'root'
+})
+export class AuthService {
+  /* other code */
+  logout(): void {
+    window.location.href = environment.LOGOUT_URL;
+  }
+}
+````
+
+## Componente Logout
+
+El servidor de autorización redireccionará a una ruta en nuestra aplicación cliente luego de que ocurra un logout exitoso. Para eso necesitamos crear un componente logout que apuntará a dicha ruta.
+
+Como se obseva en el `ngOnInit()` una vez que se redireccione a este componente, de inmediato nuestro componente lo redireccionará a la raíz del proyecto cliente:
+
+````typescript
+@Component({
+  selector: 'app-logout',
+  standalone: true,
+  imports: [CommonModule],
+  templateUrl: './logout.component.html',
+  styleUrls: ['./logout.component.scss']
+})
+export class LogoutComponent implements OnInit {
+
+  private _tokenService = inject(TokenService);
+  private _router = inject(Router);
+
+  ngOnInit(): void {
+    this._tokenService.clear();
+    this._router.navigate(['/']);
+  }
+
+}
+````
+
+Ahora, en el archivo `app.routes.ts` definimos la ruta `/logout` para nuestro nuevo componente:
+
+````typescript
+
+export const APP_ROUTES: Routes = [
+  /* other routes */
+  { path: 'logout', component: LogoutComponent, },
+  /* other routes */
+];
+````
+
+## Menú Logout
+
+Agregamos el método `onLogout()` en el componente MenuComponent para iniciar el proceso de deslogueo:
+
+````typescript
+@Component({
+  selector: 'app-menu',
+  standalone: true,
+  imports: [RouterLink],
+  templateUrl: './menu.component.html',
+  styleUrls: ['./menu.component.scss']
+})
+export class MenuComponent {
+
+  /* other code */
+
+  onLogout(): void {
+    this._authService.logout();
+  }
+
+}
+````
+
+Finalmente, en su componente html lo llamamos:
+
+````html
+<button class="btn btn-outline-danger" (click)="onLogout()" type="button">Logout</button>
+````
+
+## Redireccionando a la raíz del proyecto cuando se hace login
+
+Anteriormente, cada vez que iniciábamos sesión el authorization server nos redirigía a la ruta `/authorized`. Eso está bien, pero lo que haremos ahora será que en vez de que se quede en dicha página, lo redireccionaremos de inmediato a la raíz del proyecto cliente:
+
+````typescript
+@Component({
+  selector: 'app-authorized',
+  standalone: true,
+  templateUrl: './authorized.component.html',
+  styleUrls: ['./authorized.component.scss']
+})
+export class AuthorizedComponent implements OnInit {
+
+  /* properties */
+
+  ngOnInit(): void {
+    this._activatedRoute.queryParams
+      .pipe(
+        tap(({ code }) => this.code = code),
+        switchMap(({ code }) => this._authService.getToken(code))
+      )
+      .subscribe(token => {
+        console.log(token);
+        this._tokenService.setTokens(token.access_token, token.refresh_token);
+        this._router.navigate(['/']);
+      });
+  }
+
+}
+````
+---
+
+# CAPÍTULO 12: Definiendo menú según rol del usuario
+
+---
+
+## Métodos isLogged() e isAdmin()
+
+En nuestro servicio `TokenService` agregamos los dos métodos siguientes:
+
+````typescript
+
+@Injectable({
+  providedIn: 'root'
+})
+export class TokenService {
+
+  /* other code */
+
+  isLogged(): boolean {
+    return localStorage.getItem(ACCESS_TOKEN) !== null;
+  }
+
+  isAdmin(): boolean {
+    if (!this.isLogged()) return false;
+    const token = this.getAccessToken();
+    const payload = token!.split(".")[1];
+    const payloadDecoded = atob(payload);
+    const values = JSON.parse(payloadDecoded);
+    const roles = values.roles;
+    return !(roles.indexOf('ROLE_ADMIN') < 0);
+  }
+
+}
+````
+
+Nótese que a partir del jwt almacenado en el localStorage estamos obteniendo el rol del usuario actual.
+
+## Modificando Menú
+
+En función del rol del usuario actual o si está logueado es que mostraremos el menú de la aplicación:
+
+````typescript
+@Component({
+  selector: 'app-menu',
+  standalone: true,
+  imports: [RouterLink, NgIf],
+  templateUrl: './menu.component.html',
+  styleUrls: ['./menu.component.scss']
+})
+export class MenuComponent implements OnInit {
+
+  public isLogged: boolean = false;
+  public isAdmin: boolean = false;
+  private _authService = inject(AuthService);
+  private _tokenService = inject(TokenService);
+
+  /* other methods */
+
+  getLogged(): void {
+    this.isLogged = this._tokenService.isLogged();
+    this.isAdmin = this._tokenService.isAdmin();
+  }
+
+}
+````
+
+Su respectivo html quedaría así: 
+
+````html
+<ul class="navbar-nav me-auto mb-2 mb-lg-0">
+  <li class="nav-item">
+    <a class="nav-link active" aria-current="page" [routerLink]="['/']">Home</a>
+  </li>
+  <li class="nav-item">
+    <a class="nav-link" [routerLink]="['/user']" *ngIf="isLogged">User</a>
+  </li>
+  <li class="nav-item">
+    <a class="nav-link" [routerLink]="['/admin']" *ngIf="isAdmin">Admin</a>
+  </li>
+</ul>
+<form class="d-flex" role="search">
+  <button class="btn btn-outline-success" *ngIf="!isLogged" (click)="onLogin()" type="button">Login</button>
+  <button class="btn btn-outline-danger" *ngIf="isLogged" (click)="onLogout()" type="button">Logout</button>
+</form>
+````
+
+## Modificando el AppComponent
+
+Agregamos la referencia `#menu` a la directiva `<app-menu />`: 
+
+````html
+<app-menu #menu/>
+<main class="container">
+  <router-outlet />
+</main>
+````
+
+Finalmente, en su componente de typescript usamos la referencia para llamar a su método `getLogged()`:
+
+````typescript
+@Component({
+  selector: 'app-root',
+  standalone: true,
+  imports: [RouterOutlet, MenuComponent],
+  templateUrl: './app.component.html',
+  styleUrls: ['./app.component.scss']
+})
+export class AppComponent implements OnInit {
+
+  @ViewChild('menu') menu!: MenuComponent;
+  private _router = inject(Router);
+
+  ngOnInit(): void {
+    this._router.events
+      .pipe(
+        // NavigationEnd, un evento que se desencadena cuando una navegación finaliza correctamente.
+        filter((e): e is NavigationEnd => e instanceof NavigationEnd) 
+      )
+      .subscribe(resp => {
+        console.log('Filtró NavigationEnd', resp);
+        this.menu!.getLogged();
+      });
+  }
+}
+````

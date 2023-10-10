@@ -29,7 +29,11 @@ export class AuthService {
     window.location.href = `${environment.AUTHORIZE_URI}?${this._params.toString()}`;
   }
 
-  public getToken(code: string): Observable<Token> {
+  logout(): void {
+    window.location.href = environment.LOGOUT_URL;
+  }
+
+  getToken(code: string): Observable<Token> {
     const clientCredentialsBase64 = btoa(`${environment.CLIENT_ID}:secret-key`);
     const headers = this.getHeaders(clientCredentialsBase64);
     const params = this.getParamsToken(code);
