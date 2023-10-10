@@ -241,3 +241,427 @@ Como finalización del **PRIMER PASO** del flujo de tipo de concesión de **Cód
 
 ![4.authorization-code](./src/assets/4.authorization-code.png)
 
+---
+
+# CAPÍTULO 8: Obteniendo Access Token en Cliente Angular
+
+---
+
+## EndPoint para obtener Token
+
+Si revisamos las uris que el `servidor de autorización` nos proporciona veremos lo siguiente:
+
+````json
+/* http://localhost:9000/.well-known/oauth-authorization-server*/
+{
+    "issuer": "http://localhost:9000",
+    "authorization_endpoint": "http://localhost:9000/oauth2/authorize",
+    "device_authorization_endpoint": "http://localhost:9000/oauth2/device_authorization",
+    "token_endpoint": "http://localhost:9000/oauth2/token",
+    "token_endpoint_auth_methods_supported": [
+        "client_secret_basic",
+        "client_secret_post",
+        "client_secret_jwt",
+        "private_key_jwt"
+    ],
+    "jwks_uri": "http://localhost:9000/oauth2/jwks",
+    "response_types_supported": [
+        "code"
+    ],
+    "grant_types_supported": [
+        "authorization_code",
+        "client_credentials",
+        "refresh_token",
+        "urn:ietf:params:oauth:grant-type:device_code"
+    ],
+    "revocation_endpoint": "http://localhost:9000/oauth2/revoke",
+    "revocation_endpoint_auth_methods_supported": [
+        "client_secret_basic",
+        "client_secret_post",
+        "client_secret_jwt",
+        "private_key_jwt"
+    ],
+    "introspection_endpoint": "http://localhost:9000/oauth2/introspect",
+    "introspection_endpoint_auth_methods_supported": [
+        "client_secret_basic",
+        "client_secret_post",
+        "client_secret_jwt",
+        "private_key_jwt"
+    ],
+    "code_challenge_methods_supported": [
+        "S256"
+    ]
+}
+````
+
+De todas estas uris, el que ahora mismo nos interesa es el que nos proporciona el `Access Token`. Este endpoint es el `/oauth2/token` y lo colocaremos en el `environment` de desarrollo, mientras que en el de producción solo definiremos la variable `TOKEN_URL` con una cadena vacía '' como valor. Así mismo,
+debemos agregar la variable `GRANT_TYPE` correspondiente al tipo de concesión de código de autorización:
+
+````typescript
+export const environment = {
+  /* other properties */
+  TOKEN_URL: 'http://localhost:9000/oauth2/token',
+  GRANT_TYPE: 'authorization_code',
+};
+````
+
+Ahora, en nuestra clase de servicio `AuthService` necesitamos usar el `HttpClient` para realizar las peticiones a los endpoints del backend. Para que Angular nos permita usar el `HttpClient` necesitamos agregar la función `provideHttpClient()` en el archivo `app.config.ts`:
+
+````typescript
+export const appConfig: ApplicationConfig = {
+  providers: [
+    provideRouter(APP_ROUTES),
+    provideHttpClient(), //<--- Nos permitirá trabajar con el HttpClient
+  ]
+};
+````
+
+## Nuevos enum e interfaces
+
+Tenemos que definir nuevas variables de enumeración que serán usadas en la solicitud para la obtención del token:
+
+```typescript
+export const enum AUTHORIZE_REQUEST {
+  /* other enums */
+  GRANT_TYPE = 'grant_type',
+  CODE_VERIFIER = 'code_verifier',
+  CODE = 'code',
+}
+```
+También definimos la interfaz `Token` que representa el objeto que nos retornará el backend:
+
+````typescript
+export interface Token {
+  access_token:  string;
+  refresh_token: string;
+  scope:         string;
+  id_token:      string;
+  token_type:    string;
+  expires_in:    number;
+}
+````
+
+## Método del servicio para solicitar token
+
+En nuestra clase de servicio creamos el método `getToken(code)` que a partir del código de autorización que le pasemos, deberá realizar una solicitud al backend para traer la información de los tokens:
+
+````typescript
+@Injectable({
+  providedIn: 'root'
+})
+export class AuthService {
+
+  private _http = inject(HttpClient);
+  private _token_url = environment.TOKEN_URL;
+
+  /* other code */
+
+  public getToken(code: string): Observable<Token> {
+    const clientCredentialsBase64 = btoa(`${environment.CLIENT_ID}:secret-key`);
+    const headers = this.getHeaders(clientCredentialsBase64);
+    const params = this.getParamsToken(code);
+    return this._http.post<Token>(this._token_url, params, { headers });
+  }
+
+  getParamsToken(code: string): HttpParams {
+    return new HttpParams()
+      .set(AUTHORIZE_REQUEST.GRANT_TYPE, environment.GRANT_TYPE)
+      .set(AUTHORIZE_REQUEST.CLIENT_ID, environment.CLIENT_ID)
+      .set(AUTHORIZE_REQUEST.REDIRECT_URI, environment.REDIRECT_URI)
+      .set(AUTHORIZE_REQUEST.CODE_VERIFIER, environment.CODE_VERIFIER)
+      .set(AUTHORIZE_REQUEST.CODE, code);
+  }
+
+  private getHeaders(credentialsEncodedBase64: string): HttpHeaders {
+    return new HttpHeaders({
+      'Content-Type': 'application/x-www-form-urlencoded',
+      'Authorization': `Basic ${credentialsEncodedBase64}`,
+    });
+  }
+
+}
+````
+## Inicia solicitud de Token
+
+Luego de obtener el `Authorization Code`, de inmediato solicitamos un `Access Token` con ese código:
+
+````typescript
+@Component({
+  selector: 'app-authorized',
+  standalone: true,
+  templateUrl: './authorized.component.html',
+  styleUrls: ['./authorized.component.scss']
+})
+export class AuthorizedComponent implements OnInit {
+
+  public code?: string;
+  private _activatedRoute = inject(ActivatedRoute);
+  private _authService = inject(AuthService);
+
+  ngOnInit(): void {
+    this._activatedRoute.queryParams
+      .pipe(
+        tap(({ code }) => this.code = code),
+        switchMap(({ code }) => this._authService.getToken(code))
+      )
+      .subscribe(token => console.log(token));
+  }
+}
+````
+
+## Ejecutando: Obteniendo un Access Token al hacer login
+
+Nos vamos a loguear con nuestra cuenta de google para poder obtener un `Access Token` y verificar de esa manera que todo lo realizdo en este capítulo está funcionando. 
+
+¡Ojo!, es necesario que el `Authorization Server` esté levantado:
+
+![obteniendo access token](./src/assets/5.access_token.png)
+
+Listo, como observamos, estamos obteniendo un `access token` o para ser precisos varios tokens como prueba de que el flujo del tipo de concesión de código de autorización se efectuó correctamente.
+
+---
+# CAPÍTULO 9: Almacenando tokens en localStorage
+
+---
+
+Definimos las constantes a usar para poder almacenar los tokens:
+
+````typescript
+/* interfaces.ts */
+export const ACCESS_TOKEN: string = 'access_token';
+export const REFRESH_TOKEN: string = 'refresh_token';
+````
+
+Creamos la clase de servicio `TokenService` done definiremos la lógica para almacenar los tokens:
+
+````typescript
+@Injectable({
+  providedIn: 'root'
+})
+export class TokenService {
+
+  setTokens(accessToken: string, refreshToken: string): void {
+    localStorage.setItem(ACCESS_TOKEN, accessToken);
+    localStorage.setItem(REFRESH_TOKEN, refreshToken);
+  }
+
+}
+````
+
+Finalmente, desde el componente `AuthorizedComponent` llamamos a nuestro servicio anterior para almacenar el token:
+
+````typescript
+@Component({
+  selector: 'app-authorized',
+  standalone: true,
+  templateUrl: './authorized.component.html',
+  styleUrls: ['./authorized.component.scss']
+})
+export class AuthorizedComponent implements OnInit {
+
+  public code?: string;
+  private _activatedRoute = inject(ActivatedRoute);
+  private _authService = inject(AuthService);
+  private _tokenService = inject(TokenService);
+
+  ngOnInit(): void {
+    this._activatedRoute.queryParams
+      .pipe(
+        tap(({ code }) => this.code = code),
+        switchMap(({ code }) => this._authService.getToken(code))
+      )
+      .subscribe(token => {
+        console.log(token);
+        this._tokenService.setTokens(token.access_token, token.refresh_token);
+      });
+  }
+
+}
+````
+---
+# CAPÍTULO 10: Accediendo al Resource Server desde cliente Angular
+
+---
+
+En este capítulo consumiremos los recursos expuestos por el `Resource Server`, ya que hasta este punto disponemos del `Access Token` para realizar ese consumo. Primero debemos agregar la url del Servidor de Recurso en los environments:
+
+````typescript
+export const environment = {
+  /* other variables */
+  RESOURCE_URL: 'http://localhost:8080/api/v1/resources',
+};
+````
+
+En la clase de servicio `TokenService` agregamos métodos para recuperar el `access_token` y el `refresh_token`:
+
+````typescript
+@Injectable({
+  providedIn: 'root'
+})
+export class TokenService {
+
+  /* other method */
+
+  getAccessToken(): string | null {
+    return localStorage.getItem(ACCESS_TOKEN);
+  }
+
+  getRefreshToken(): string | null {
+    return localStorage.getItem(REFRESH_TOKEN);
+  }
+
+}
+````
+
+## Interceptor - Agregando JWT a los request
+
+Crearemos un interceptor funcional que nos permitirá agregar el `access_token` a todas las peticiones que se dirigan al endpoint del resource server. Para eso necesitamos clonar la request:
+
+````typescript
+export const resourceInterceptor: HttpInterceptorFn = (req, next) => {
+  const tokenService = inject(TokenService);
+  const token = tokenService.getAccessToken();
+  let modifiedReq = req;
+
+  if (token !== null && req.url.includes('resources')) {
+    modifiedReq = req.clone({
+      headers: req.headers.set(`Authorization`, `Bearer ${token}`),
+    });
+  }
+  return next(modifiedReq);
+};
+````
+Para que nuestro interceptor entre en funcionamiento es necesario configurarlo en el archivo `app.config.ts` agregándolo dentro de la función `withInterceptors([...])` y este a su vez dentro del `provideHttpClient(...)`:
+
+````typescript
+export const appConfig: ApplicationConfig = {
+  providers: [
+    provideRouter(APP_ROUTES),
+    provideHttpClient(withInterceptors([resourceInterceptor])),
+  ]
+};
+````
+
+## ResourceService para consumir endpoint del Servidor de Recurso
+
+Creamos nuestro servicio que apuntará al los endpoints del servidor de recursos:
+
+````typescript
+interface ResponseResourceServer {
+  message: string;
+}
+
+@Injectable({
+  providedIn: 'root'
+})
+export class ResourceService {
+
+  private _http = inject(HttpClient);
+  private _resourceUrl = environment.RESOURCE_URL;
+
+  user(): Observable<ResponseResourceServer> {
+    return this._http.get<ResponseResourceServer>(`${this._resourceUrl}/user`)
+  }
+
+  admin(): Observable<ResponseResourceServer> {
+    return this._http.get<ResponseResourceServer>(`${this._resourceUrl}/admin`)
+  }
+}
+````
+## Componentes Visuales: Admin y User
+
+Creamos el componente user y de inmediato llamamos al resource server:
+
+````typescript
+@Component({
+  selector: 'app-user',
+  standalone: true,
+  imports: [CommonModule],
+  templateUrl: './user.component.html',
+  styleUrls: ['./user.component.scss']
+})
+export class UserComponent implements OnInit {
+
+  public message: string = '';
+  private _resourceService = inject(ResourceService);
+
+  ngOnInit(): void {
+    this._resourceService.user()
+      .subscribe({
+        next: response => this.message = response.message,
+        error: err => {
+          this.message = `status[${err.status}], message: ${err.message}`;
+          console.log(err);
+        }
+      });
+  }
+
+}
+````
+
+El html del componente UserComponent:
+
+````html
+<div class="alert alert-success mt-3">{{ message }}</div>
+````
+
+Al igual que el componente User, toca ahora crear el componente Admin:
+
+````typescript
+@Component({
+  selector: 'app-admin',
+  standalone: true,
+  imports: [CommonModule],
+  templateUrl: './admin.component.html',
+  styleUrls: ['./admin.component.scss']
+})
+export class AdminComponent {
+
+  public message: string = '';
+  private _resourceService = inject(ResourceService);
+
+  ngOnInit(): void {
+    this._resourceService.admin()
+      .subscribe({
+        next: response => this.message = response.message,
+        error: err => {
+          this.message = `status[${err.status}], message: ${err.message}`;
+          console.log(err);
+        }
+      });
+  }
+
+}
+````
+
+## Definiendo rutas para admin y user
+
+En el `app.routes.ts` definimos las rutas para nuestros nuevos componentes:
+
+````typescript
+export const APP_ROUTES: Routes = [
+  { path: '', component: HomeComponent, },
+  { path: 'authorized', component: AuthorizedComponent, }, 
+  { path: 'user', component: UserComponent, },
+  { path: 'admin', component: AdminComponent, },
+  { path: '**', redirectTo: '', pathMatch: 'full', },
+];
+````
+
+Finalmente, las definimos en el html: 
+
+````html
+<li class="nav-item">
+  <a class="nav-link" [routerLink]="['/user']">User</a>
+</li>
+<li class="nav-item">
+  <a class="nav-link" [routerLink]="['/admin']">Admin</a>
+</li>
+````
+
+## Probando acceso al Resource Server desde Cliente Angular
+
+Primero debemos dar clic en el botón de `Login` para que podamos registrar el `access_token` en el localStorage. Solo habiendo realizado lo anterior, procedemos a ingresar al menú `user` que está apuntando al endpoint `/user` en el servidor de recuros y además ese endpoint está segurizado para los usuarios con rol `OIDC_USER`, correspondiente a los usuarios que se loguean con su cuenta de google y es precisamente con nuestra cuenta de google que nos logueamos (también puede ser con la cuenta propia registrada en el Authorization Server. Actualmente en la BD tenemos registrado a `admin` y `user`):
+
+![6.angular-resource-server](./src/assets/6.angular-resource-server.png)
+
