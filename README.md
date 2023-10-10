@@ -478,3 +478,190 @@ export class AuthorizedComponent implements OnInit {
 
 }
 ````
+---
+# CAPÍTULO 10: Accediendo al Resource Server desde cliente Angular
+
+---
+
+En este capítulo consumiremos los recursos expuestos por el `Resource Server`, ya que hasta este punto disponemos del `Access Token` para realizar ese consumo. Primero debemos agregar la url del Servidor de Recurso en los environments:
+
+````typescript
+export const environment = {
+  /* other variables */
+  RESOURCE_URL: 'http://localhost:8080/api/v1/resources',
+};
+````
+
+En la clase de servicio `TokenService` agregamos métodos para recuperar el `access_token` y el `refresh_token`:
+
+````typescript
+@Injectable({
+  providedIn: 'root'
+})
+export class TokenService {
+
+  /* other method */
+
+  getAccessToken(): string | null {
+    return localStorage.getItem(ACCESS_TOKEN);
+  }
+
+  getRefreshToken(): string | null {
+    return localStorage.getItem(REFRESH_TOKEN);
+  }
+
+}
+````
+
+## Interceptor - Agregando JWT a los request
+
+Crearemos un interceptor funcional que nos permitirá agregar el `access_token` a todas las peticiones que se dirigan al endpoint del resource server. Para eso necesitamos clonar la request:
+
+````typescript
+export const resourceInterceptor: HttpInterceptorFn = (req, next) => {
+  const tokenService = inject(TokenService);
+  const token = tokenService.getAccessToken();
+  let modifiedReq = req;
+
+  if (token !== null && req.url.includes('resources')) {
+    modifiedReq = req.clone({
+      headers: req.headers.set(`Authorization`, `Bearer ${token}`),
+    });
+  }
+  return next(modifiedReq);
+};
+````
+Para que nuestro interceptor entre en funcionamiento es necesario configurarlo en el archivo `app.config.ts` agregándolo dentro de la función `withInterceptors([...])` y este a su vez dentro del `provideHttpClient(...)`:
+
+````typescript
+export const appConfig: ApplicationConfig = {
+  providers: [
+    provideRouter(APP_ROUTES),
+    provideHttpClient(withInterceptors([resourceInterceptor])),
+  ]
+};
+````
+
+## ResourceService para consumir endpoint del Servidor de Recurso
+
+Creamos nuestro servicio que apuntará al los endpoints del servidor de recursos:
+
+````typescript
+interface ResponseResourceServer {
+  message: string;
+}
+
+@Injectable({
+  providedIn: 'root'
+})
+export class ResourceService {
+
+  private _http = inject(HttpClient);
+  private _resourceUrl = environment.RESOURCE_URL;
+
+  user(): Observable<ResponseResourceServer> {
+    return this._http.get<ResponseResourceServer>(`${this._resourceUrl}/user`)
+  }
+
+  admin(): Observable<ResponseResourceServer> {
+    return this._http.get<ResponseResourceServer>(`${this._resourceUrl}/admin`)
+  }
+}
+````
+## Componentes Visuales: Admin y User
+
+Creamos el componente user y de inmediato llamamos al resource server:
+
+````typescript
+@Component({
+  selector: 'app-user',
+  standalone: true,
+  imports: [CommonModule],
+  templateUrl: './user.component.html',
+  styleUrls: ['./user.component.scss']
+})
+export class UserComponent implements OnInit {
+
+  public message: string = '';
+  private _resourceService = inject(ResourceService);
+
+  ngOnInit(): void {
+    this._resourceService.user()
+      .subscribe({
+        next: response => this.message = response.message,
+        error: err => {
+          this.message = `status[${err.status}], message: ${err.message}`;
+          console.log(err);
+        }
+      });
+  }
+
+}
+````
+
+El html del componente UserComponent:
+
+````html
+<div class="alert alert-success mt-3">{{ message }}</div>
+````
+
+Al igual que el componente User, toca ahora crear el componente Admin:
+
+````typescript
+@Component({
+  selector: 'app-admin',
+  standalone: true,
+  imports: [CommonModule],
+  templateUrl: './admin.component.html',
+  styleUrls: ['./admin.component.scss']
+})
+export class AdminComponent {
+
+  public message: string = '';
+  private _resourceService = inject(ResourceService);
+
+  ngOnInit(): void {
+    this._resourceService.admin()
+      .subscribe({
+        next: response => this.message = response.message,
+        error: err => {
+          this.message = `status[${err.status}], message: ${err.message}`;
+          console.log(err);
+        }
+      });
+  }
+
+}
+````
+
+## Definiendo rutas para admin y user
+
+En el `app.routes.ts` definimos las rutas para nuestros nuevos componentes:
+
+````typescript
+export const APP_ROUTES: Routes = [
+  { path: '', component: HomeComponent, },
+  { path: 'authorized', component: AuthorizedComponent, }, 
+  { path: 'user', component: UserComponent, },
+  { path: 'admin', component: AdminComponent, },
+  { path: '**', redirectTo: '', pathMatch: 'full', },
+];
+````
+
+Finalmente, las definimos en el html: 
+
+````html
+<li class="nav-item">
+  <a class="nav-link" [routerLink]="['/user']">User</a>
+</li>
+<li class="nav-item">
+  <a class="nav-link" [routerLink]="['/admin']">Admin</a>
+</li>
+````
+
+## Probando acceso al Resource Server desde Cliente Angular
+
+Primero debemos dar clic en el botón de `Login` para que podamos registrar el `access_token` en el localStorage. Solo habiendo realizado lo anterior, procedemos a ingresar al menú `user` que está apuntando al endpoint `/user` en el servidor de recuros y además ese endpoint está segurizado para los usuarios con rol `OIDC_USER`, correspondiente a los usuarios que se loguean con su cuenta de google y es precisamente con nuestra cuenta de google que nos logueamos (también puede ser con la cuenta propia registrada en el Authorization Server. Actualmente en la BD tenemos registrado a `admin` y `user`):
+
+![6.angular-resource-server](./src/assets/6.angular-resource-server.png)
+
