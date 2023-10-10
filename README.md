@@ -710,3 +710,40 @@ export class AuthService {
 }
 ````
 
+## Componente Logout
+
+El servidor de autorización redireccionará a una ruta en nuestra aplicación cliente luego de que ocurra un logout exitoso. Para eso necesitamos crear un componente logout que apuntará a dicha ruta.
+
+Como se obseva en el `ngOnInit()` una vez que se redireccione a este componente, de inmediato nuestro componente lo redireccionará a la raíz del proyecto cliente:
+
+````typescript
+@Component({
+  selector: 'app-logout',
+  standalone: true,
+  imports: [CommonModule],
+  templateUrl: './logout.component.html',
+  styleUrls: ['./logout.component.scss']
+})
+export class LogoutComponent implements OnInit {
+
+  private _tokenService = inject(TokenService);
+  private _router = inject(Router);
+
+  ngOnInit(): void {
+    this._tokenService.clear();
+    this._router.navigate(['/']);
+  }
+
+}
+````
+
+Ahora, en el archivo `app.routes.ts` definimos la ruta `/logout` para nuestro nuevo componente:
+
+````typescript
+
+export const APP_ROUTES: Routes = [
+  /* other routes */
+  { path: 'logout', component: LogoutComponent, },
+  /* other routes */
+];
+````
