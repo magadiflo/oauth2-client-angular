@@ -11,4 +11,5 @@ export const environment = {
   TOKEN_URL: '',
   GRANT_TYPE: '',
   RESOURCE_URL: '',
+  LOGOUT_URL: '',
 };

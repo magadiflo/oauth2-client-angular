@@ -665,3 +665,48 @@ Primero debemos dar clic en el botón de `Login` para que podamos registrar el `
 
 ![6.angular-resource-server](./src/assets/6.angular-resource-server.png)
 
+---
+# CAPÍTULO 11: Implementación del Logout
+
+---
+
+## Definiendo endpoint del logout
+
+Definimos la variable que contendrá el endpoint en el servidor de autorización correspondiente al logout:
+
+````typescript
+export const environment = {
+  /* other variables */
+  LOGOUT_URL: 'http://localhost:9000/logout',
+};
+````
+
+Método en el `token.service.ts` para limpiar los tokens del localStorage:
+
+````typescript
+@Injectable({
+  providedIn: 'root'
+})
+export class TokenService {
+  /* other methods */
+  clear(): void {
+    localStorage.removeItem(ACCESS_TOKEN);
+    localStorage.removeItem(REFRESH_TOKEN);
+  }
+}
+````
+Método en el `auth.service.ts` para redireccionar al usuario al formulario de logout:
+
+````typescript
+
+@Injectable({
+  providedIn: 'root'
+})
+export class AuthService {
+  /* other code */
+  logout(): void {
+    window.location.href = environment.LOGOUT_URL;
+  }
+}
+````
+
