@@ -658,3 +658,10 @@ Finalmente, las definimos en el html:
   <a class="nav-link" [routerLink]="['/admin']">Admin</a>
 </li>
 ````
+
+## Probando acceso al Resource Server desde Cliente Angular
+
+Primero debemos dar clic en el botón de `Login` para que podamos registrar el `access_token` en el localStorage. Solo habiendo realizado lo anterior, procedemos a ingresar al menú `user` que está apuntando al endpoint `/user` en el servidor de recuros y además ese endpoint está segurizado para los usuarios con rol `OIDC_USER`, correspondiente a los usuarios que se loguean con su cuenta de google y es precisamente con nuestra cuenta de google que nos logueamos (también puede ser con la cuenta propia registrada en el Authorization Server. Actualmente en la BD tenemos registrado a `admin` y `user`):
+
+![6.angular-resource-server](./src/assets/6.angular-resource-server.png)
+
