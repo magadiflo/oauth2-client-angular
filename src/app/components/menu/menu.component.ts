@@ -18,4 +18,8 @@ export class MenuComponent {
     this._authService.startFlowOAuth2AuthorizationCode();
   }
 
+  onLogout(): void {
+    this._authService.logout();
+  }
+
 }

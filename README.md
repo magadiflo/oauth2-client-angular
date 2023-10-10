@@ -665,3 +665,145 @@ Primero debemos dar clic en el botón de `Login` para que podamos registrar el `
 
 ![6.angular-resource-server](./src/assets/6.angular-resource-server.png)
 
+---
+# CAPÍTULO 11: Implementación del Logout
+
+---
+
+## Definiendo endpoint del logout
+
+Definimos la variable que contendrá el endpoint en el servidor de autorización correspondiente al logout:
+
+````typescript
+export const environment = {
+  /* other variables */
+  LOGOUT_URL: 'http://localhost:9000/logout',
+};
+````
+
+Método en el `token.service.ts` para limpiar los tokens del localStorage:
+
+````typescript
+@Injectable({
+  providedIn: 'root'
+})
+export class TokenService {
+  /* other methods */
+  clear(): void {
+    localStorage.removeItem(ACCESS_TOKEN);
+    localStorage.removeItem(REFRESH_TOKEN);
+  }
+}
+````
+Método en el `auth.service.ts` para redireccionar al usuario al formulario de logout:
+
+````typescript
+
+@Injectable({
+  providedIn: 'root'
+})
+export class AuthService {
+  /* other code */
+  logout(): void {
+    window.location.href = environment.LOGOUT_URL;
+  }
+}
+````
+
+## Componente Logout
+
+El servidor de autorización redireccionará a una ruta en nuestra aplicación cliente luego de que ocurra un logout exitoso. Para eso necesitamos crear un componente logout que apuntará a dicha ruta.
+
+Como se obseva en el `ngOnInit()` una vez que se redireccione a este componente, de inmediato nuestro componente lo redireccionará a la raíz del proyecto cliente:
+
+````typescript
+@Component({
+  selector: 'app-logout',
+  standalone: true,
+  imports: [CommonModule],
+  templateUrl: './logout.component.html',
+  styleUrls: ['./logout.component.scss']
+})
+export class LogoutComponent implements OnInit {
+
+  private _tokenService = inject(TokenService);
+  private _router = inject(Router);
+
+  ngOnInit(): void {
+    this._tokenService.clear();
+    this._router.navigate(['/']);
+  }
+
+}
+````
+
+Ahora, en el archivo `app.routes.ts` definimos la ruta `/logout` para nuestro nuevo componente:
+
+````typescript
+
+export const APP_ROUTES: Routes = [
+  /* other routes */
+  { path: 'logout', component: LogoutComponent, },
+  /* other routes */
+];
+````
+
+## Menú Logout
+
+Agregamos el método `onLogout()` en el componente MenuComponent para iniciar el proceso de deslogueo:
+
+````typescript
+@Component({
+  selector: 'app-menu',
+  standalone: true,
+  imports: [RouterLink],
+  templateUrl: './menu.component.html',
+  styleUrls: ['./menu.component.scss']
+})
+export class MenuComponent {
+
+  /* other code */
+
+  onLogout(): void {
+    this._authService.logout();
+  }
+
+}
+````
+
+Finalmente, en su componente html lo llamamos:
+
+````html
+<button class="btn btn-outline-danger" (click)="onLogout()" type="button">Logout</button>
+````
+
+## Redireccionando a la raíz del proyecto cuando se hace login
+
+Anteriormente, cada vez que iniciábamos sesión el authorization server nos redirigía a la ruta `/authorized`. Eso está bien, pero lo que haremos ahora será que en vez de que se quede en dicha página, lo redireccionaremos de inmediato a la raíz del proyecto cliente:
+
+````typescript
+@Component({
+  selector: 'app-authorized',
+  standalone: true,
+  templateUrl: './authorized.component.html',
+  styleUrls: ['./authorized.component.scss']
+})
+export class AuthorizedComponent implements OnInit {
+
+  /* properties */
+
+  ngOnInit(): void {
+    this._activatedRoute.queryParams
+      .pipe(
+        tap(({ code }) => this.code = code),
+        switchMap(({ code }) => this._authService.getToken(code))
+      )
+      .subscribe(token => {
+        console.log(token);
+        this._tokenService.setTokens(token.access_token, token.refresh_token);
+        this._router.navigate(['/']);
+      });
+  }
+
+}
+````
