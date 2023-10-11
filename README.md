@@ -933,3 +933,23 @@ export class AppComponent implements OnInit {
   }
 }
 ````
+
+---
+# CAPÍTULO 13: Generando Code Verifier y Code Challenge - PKCE
+
+---
+
+## Istalando dependencias
+
+Necesitamos intalar la dependencia de `crypto-js` para poder encriptar en `Code Verifier`:
+
+````
+npm install crypto-js @types/crypto-js
+````
+
+**NOTA**
+> Recordar que desde un inicio hemos estado usando el `code_verifier` y `code_challenge` hardcodeado, pero en este capítulo generaremos ambos códigos.
+>
+> La lógica con estos dos códigos es: "A partir del `Code Verifier` obtenemos el `Code Challenge` pero no al revés"
+
+
