@@ -1,6 +1,9 @@
 import { Injectable } from '@angular/core';
 
-import { ACCESS_TOKEN, REFRESH_TOKEN } from '../common/interfaces';
+import * as CryptoJS from 'crypto-js';
+
+import { ACCESS_TOKEN, REFRESH_TOKEN, CODE_VERIFIER } from '../common/interfaces';
+import { environment } from '../../environments/environment';
 
 @Injectable({
   providedIn: 'root'
@@ -37,6 +40,24 @@ export class TokenService {
     const values = JSON.parse(payloadDecoded);
     const roles = values.roles;
     return !(roles.indexOf('ROLE_ADMIN') < 0);
+  }
+
+  setVerifier(codeVerifier: string): void {
+    if (localStorage.getItem(CODE_VERIFIER)) {
+      this.deleteVerifier();
+    }
+    const encrypted = CryptoJS.AES.encrypt(codeVerifier, environment.SECRET_PKCE);
+    localStorage.setItem(CODE_VERIFIER, encrypted.toString());
+  }
+
+  getVerfier(): string {
+    const encrypted = localStorage.getItem(CODE_VERIFIER)!;
+    const decrypted = CryptoJS.AES.decrypt(encrypted, environment.SECRET_PKCE).toString(CryptoJS.enc.Utf8);
+    return decrypted;
+  }
+
+  deleteVerifier(): void {
+    localStorage.removeItem(CODE_VERIFIER);
   }
 
 }

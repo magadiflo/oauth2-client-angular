@@ -933,3 +933,199 @@ export class AppComponent implements OnInit {
   }
 }
 ````
+
+---
+# CAPÍTULO 13: Generando Code Verifier y Code Challenge - PKCE
+
+---
+
+## Istalando dependencias
+
+Necesitamos intalar la dependencia de `crypto-js` para poder encriptar en `Code Verifier`:
+
+````
+npm install crypto-js @types/crypto-js
+````
+
+**NOTA**
+> Recordar que desde un inicio hemos estado usando el `code_verifier` y `code_challenge` hardcodeado, pero en este capítulo generaremos ambos códigos.
+>
+> La lógica con estos dos códigos es: "A partir del `Code Verifier` obtenemos el `Code Challenge` pero no al revés"
+
+
+## Definiendo variables
+
+Modificamos los archivos `environment` quitándo las dos propiedades hardcodeadas: `CODE_VERIFIER` y `CODE_CHALLENGE` ya que estos códigos los crearemos manualmente. Lo que sí agregaremos será la propiedad `SECRET_PKCE`. 
+
+A continuación se muestran todas las propiedades definidas en los archivos `environment`: 
+
+````typescript
+export const environment = {
+  AUTHORIZE_URI: 'http://localhost:9000/oauth2/authorize',
+  CLIENT_ID: 'front-end-app',
+  REDIRECT_URI: 'http://localhost:4200/authorized',
+  SCOPE: 'openid profile',
+  RESPONSE_TYPE: 'code',
+  RESPONSE_MODE: 'form_post',
+  CODE_CHALLENGE_METHOD: 'S256',
+  TOKEN_URL: 'http://localhost:9000/oauth2/token',
+  GRANT_TYPE: 'authorization_code',
+  RESOURCE_URL: 'http://localhost:8080/api/v1/resources',
+  LOGOUT_URL: 'http://localhost:9000/logout',
+  SECRET_PKCE: 'mi-clave-secreta',
+};
+````
+Creamos una nueva constante en el archivo de `interfaces.ts`: 
+
+````typescript
+/* other properties */
+export const CODE_VERIFIER: string = 'code_verifier';
+````
+
+## Generando códigos
+
+En el servicio `auth.service.ts` definimos los métodos para crear los códigos: Code Verifier y Code Challenge. Además se realizan otras modificaciones, por lo que a continuación se muestra la clase completa del servicio:
+
+````typescript
+/* other imports */
+import * as CryptoJS from 'crypto-js';
+
+@Injectable({
+  providedIn: 'root'
+})
+export class AuthService {
+
+  private _http = inject(HttpClient);
+  private _tokenService = inject(TokenService);
+  private _token_url = environment.TOKEN_URL;
+  private static readonly CHARACTERS: string = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+
+  startFlowOAuth2AuthorizationCode(): void {
+    const codeVerifier = this.generateCodeVerifier();
+    this._tokenService.setVerifier(codeVerifier);
+    const codeChallenge = this.generateCodeChallenge(codeVerifier);
+    window.location.href = `${environment.AUTHORIZE_URI}?${this.getParamsCode(codeChallenge).toString()}`;
+  }
+
+  logout(): void {
+    window.location.href = environment.LOGOUT_URL;
+  }
+
+  getToken(code: string, codeVerifier: string): Observable<Token> {
+    const clientCredentialsBase64 = btoa(`${environment.CLIENT_ID}:secret-key`);
+    const headers = this.getHeaders(clientCredentialsBase64);
+    const params = this.getParamsToken(code, codeVerifier);
+    return this._http.post<Token>(this._token_url, params, { headers });
+  }
+
+  getParamsCode(codeChallenge: string): HttpParams {
+    return new HttpParams()
+      .set(AUTHORIZE_REQUEST.CLIENT_ID, environment.CLIENT_ID)
+      .set(AUTHORIZE_REQUEST.REDIRECT_URI, environment.REDIRECT_URI)
+      .set(AUTHORIZE_REQUEST.SCOPE, environment.SCOPE)
+      .set(AUTHORIZE_REQUEST.RESPONSE_TYPE, environment.RESPONSE_TYPE)
+      .set(AUTHORIZE_REQUEST.RESPONSE_MODE, environment.RESPONSE_MODE)
+      .set(AUTHORIZE_REQUEST.CODE_CHALLENGE_METHOD, environment.CODE_CHALLENGE_METHOD)
+      .set(AUTHORIZE_REQUEST.CODE_CHALLENGE, codeChallenge);
+  }
+
+  getParamsToken(code: string, codeVerifier: string): HttpParams {
+    return new HttpParams()
+      .set(AUTHORIZE_REQUEST.GRANT_TYPE, environment.GRANT_TYPE)
+      .set(AUTHORIZE_REQUEST.CLIENT_ID, environment.CLIENT_ID)
+      .set(AUTHORIZE_REQUEST.REDIRECT_URI, environment.REDIRECT_URI)
+      .set(AUTHORIZE_REQUEST.CODE_VERIFIER, codeVerifier)
+      .set(AUTHORIZE_REQUEST.CODE, code);
+  }
+
+  private getHeaders(credentialsEncodedBase64: string): HttpHeaders {
+    return new HttpHeaders({
+      'Content-Type': 'application/x-www-form-urlencoded',
+      'Authorization': `Basic ${credentialsEncodedBase64}`,
+    });
+  }
+
+  generateCodeVerifier(): string {
+    let result = '';
+    const charLength = AuthService.CHARACTERS.length;
+    for (let i = 0; i < 44; i++) {
+      result += AuthService.CHARACTERS.charAt(Math.floor(Math.random() * charLength));
+    }
+    return result;
+  }
+
+  generateCodeChallenge(codeVerifier: string): string {
+    const codeVerifierHash = CryptoJS.SHA256(codeVerifier).toString(CryptoJS.enc.Base64);
+    const codeChallenge = codeVerifierHash
+      .replace(/=/g, '')
+      .replace(/\+/g, '-')
+      .replace(/\//g, '_');
+    return codeChallenge;
+  }
+
+}
+````
+
+En el servicio `token.service.ts` creamos los métodos que nos permitirá almacenar el código en el localStorate temporalmente:
+
+````typescript
+/* other imports */
+import * as CryptoJS from 'crypto-js';
+
+@Injectable({
+  providedIn: 'root'
+})
+export class TokenService {
+
+  /* other code */
+  
+  setVerifier(codeVerifier: string): void {
+    if (localStorage.getItem(CODE_VERIFIER)) {
+      this.deleteVerifier();
+    }
+    const encrypted = CryptoJS.AES.encrypt(codeVerifier, environment.SECRET_PKCE);
+    localStorage.setItem(CODE_VERIFIER, encrypted.toString());
+  }
+
+  getVerfier(): string {
+    const encrypted = localStorage.getItem(CODE_VERIFIER)!;
+    const decrypted = CryptoJS.AES.decrypt(encrypted, environment.SECRET_PKCE).toString(CryptoJS.enc.Utf8);
+    return decrypted;
+  }
+
+  deleteVerifier(): void {
+    localStorage.removeItem(CODE_VERIFIER);
+  }
+}
+````
+
+## Utilizando códigos generados
+
+Desde nuestro componente `AuthorizationComponent` utilizamos nuestro código generado manualmente. ¿Por qué desde este componente?, porque el `Authorization Server` nos retorna el código de autorización justo a ese componente y de inmediato nuestra aplicación de angular solicita un access token.
+
+````typescript
+@Component({
+  selector: 'app-authorized',
+  standalone: true,
+  templateUrl: './authorized.component.html',
+  styleUrls: ['./authorized.component.scss']
+})
+export class AuthorizedComponent implements OnInit {
+
+  /* other properties */
+
+  ngOnInit(): void {
+    this._activatedRoute.queryParams
+      .pipe(
+        tap(({ code }) => this.code = code),
+        switchMap(({ code }) => {
+          const codeVerifier = this._tokenService.getVerfier();
+          this._tokenService.deleteVerifier();
+          return this._authService.getToken(code, codeVerifier);
+        })
+      )
+      .subscribe(/* other code */);
+  }
+
+}
+````
