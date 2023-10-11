@@ -953,3 +953,32 @@ npm install crypto-js @types/crypto-js
 > La lógica con estos dos códigos es: "A partir del `Code Verifier` obtenemos el `Code Challenge` pero no al revés"
 
 
+## Definiendo variables
+
+Modificamos los archivos `environment` quitándo las dos propiedades hardcodeadas: `CODE_VERIFIER` y `CODE_CHALLENGE` ya que estos códigos los crearemos manualmente. Lo que sí agregaremos será la propiedad `SECRET_PKCE`. 
+
+A continuación se muestran todas las propiedades definidas en los archivos `environment`: 
+
+````typescript
+export const environment = {
+  AUTHORIZE_URI: 'http://localhost:9000/oauth2/authorize',
+  CLIENT_ID: 'front-end-app',
+  REDIRECT_URI: 'http://localhost:4200/authorized',
+  SCOPE: 'openid profile',
+  RESPONSE_TYPE: 'code',
+  RESPONSE_MODE: 'form_post',
+  CODE_CHALLENGE_METHOD: 'S256',
+  TOKEN_URL: 'http://localhost:9000/oauth2/token',
+  GRANT_TYPE: 'authorization_code',
+  RESOURCE_URL: 'http://localhost:8080/api/v1/resources',
+  LOGOUT_URL: 'http://localhost:9000/logout',
+  SECRET_PKCE: 'mi-clave-secreta',
+};
+````
+Creamos una nueva constante en el archivo de `interfaces.ts`: 
+
+````typescript
+/* other properties */
+export const CODE_VERIFIER: string = 'code_verifier';
+````
+
