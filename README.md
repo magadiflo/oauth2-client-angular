@@ -1098,3 +1098,34 @@ export class TokenService {
   }
 }
 ````
+
+## Utilizando códigos generados
+
+Desde nuestro componente `AuthorizationComponent` utilizamos nuestro código generado manualmente. ¿Por qué desde este componente?, porque el `Authorization Server` nos retorna el código de autorización justo a ese componente y de inmediato nuestra aplicación de angular solicita un access token.
+
+````typescript
+@Component({
+  selector: 'app-authorized',
+  standalone: true,
+  templateUrl: './authorized.component.html',
+  styleUrls: ['./authorized.component.scss']
+})
+export class AuthorizedComponent implements OnInit {
+
+  /* other properties */
+
+  ngOnInit(): void {
+    this._activatedRoute.queryParams
+      .pipe(
+        tap(({ code }) => this.code = code),
+        switchMap(({ code }) => {
+          const codeVerifier = this._tokenService.getVerfier();
+          this._tokenService.deleteVerifier();
+          return this._authService.getToken(code, codeVerifier);
+        })
+      )
+      .subscribe(/* other code */);
+  }
+
+}
+````

@@ -23,7 +23,11 @@ export class AuthorizedComponent implements OnInit {
     this._activatedRoute.queryParams
       .pipe(
         tap(({ code }) => this.code = code),
-        switchMap(({ code }) => this._authService.getToken(code))
+        switchMap(({ code }) => {
+          const codeVerifier = this._tokenService.getVerfier();
+          this._tokenService.deleteVerifier();
+          return this._authService.getToken(code, codeVerifier);
+        })
       )
       .subscribe(token => {
         console.log(token);
