@@ -6,10 +6,9 @@ export const environment = {
   RESPONSE_TYPE: '',
   RESPONSE_MODE: '',
   CODE_CHALLENGE_METHOD: '',
-  CODE_CHALLENGE: '',
-  CODE_VERIFIER: '',
   TOKEN_URL: '',
   GRANT_TYPE: '',
   RESOURCE_URL: '',
   LOGOUT_URL: '',
+  SECRET_PKCE: '',
 };
